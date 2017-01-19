@@ -629,16 +629,23 @@ void CryptoUtils::prng_seed() {
 
   LLVMContext &ctx = llvm::getGlobalContext();
 
-  if (devrandom) {
+  //if (devrandom) {
+  if (true) {
 
-    devrandom.read(key, 16);
+    //devrandom.read(key, 16);
 
-    if (devrandom.gcount() != 16) {
-      ctx.emitError(Twine("Cannot read enough bytes in /dev/random"));
-    }
+    //if (devrandom.gcount() != 16) {
+    //  ctx.emitError(Twine("Cannot read enough bytes in /dev/random"));
+    //}
 
-    devrandom.close();
-    DEBUG_WITH_TYPE("cryptoutils", dbgs() << "cryptoutils seeded with /dev/random\n");
+    //devrandom.close();
+	srand((unsigned int)time(NULL));
+	for (int i = 0; i < 16; i++)
+	{
+		key[i] = rand();
+	}
+    //DEBUG_WITH_TYPE("cryptoutils", dbgs() << "cryptoutils seeded with /dev/random\n");
+	DEBUG_WITH_TYPE("cryptoutils", dbgs() << "cryptoutils seeded with rand()\n");
 
     memset(ctr, 0, 16);
 

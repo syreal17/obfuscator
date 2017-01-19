@@ -23,6 +23,8 @@
 #include <stdint.h>
 #include <cstdio>
 #include <string>
+#include <stdlib.h>
+#include <time.h>
 
 namespace llvm {
 
@@ -81,7 +83,8 @@ extern ManagedStatic<CryptoUtils> cryptoutils;
 #endif
 
 #if !defined(ENDIAN_BIG) && !defined(ENDIAN_LITTLE)
-#error                                                                         \
+#define ENDIAN_LITTLE
+//#error                                                                         \
     "Unknown endianness of the compilation platform, check this header aes_encrypt.h"
 #endif
 

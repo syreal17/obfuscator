@@ -102,6 +102,8 @@ STATISTIC(NumModifiedBasicBlocks,  "d. Number of modified basic blocks");
 STATISTIC(NumAddedBasicBlocks,  "e. Number of added basic blocks in this module");
 STATISTIC(FinalNumBasicBlocks,  "f. Final number of basic blocks in this module");
 
+#define DEBUG_ANN true
+
 
 // Options for the pass
 const int defaultObfRate = 30, defaultObfTime = 1;
@@ -112,12 +114,17 @@ ObfProbRate("boguscf-prob", cl::desc("Choose the probability [%] each basic bloc
 static cl::opt<int>
 ObfTimes("boguscf-loop", cl::desc("Choose how many time the -bcf pass loop on a function"), cl::value_desc("number of times"), cl::init(defaultObfTime), cl::Optional);
 
+static cl::opt<bool>
+Annotate("ann", cl::desc("Mark originalBB starting with add 1 7, add 1 8. And mark alteredBB starting with add 2 7, add 2 8"), cl::value_desc("Annotate BCF blocks"), cl::init(false), cl::Optional);
+
 namespace {
   struct BogusControlFlow : public FunctionPass {
     static char ID; // Pass identification
     bool flag;
     BogusControlFlow() : FunctionPass(ID) {}
     BogusControlFlow(bool flag) : FunctionPass(ID) {this->flag = flag; BogusControlFlow();}
+	Value *originalBBstartStrPtr = NULL;
+	Value *alteredBBstartStrPtr = NULL;
 
     /* runOnFunction
      *
@@ -125,6 +132,9 @@ namespace {
      * to the function. See header for more details.
      */
     virtual bool runOnFunction(Function &F){
+	  // ltj: making deterministic for debugging purposes
+	  llvm::cryptoutils->prng_seed("DEADDEADDEADDEADBEEFBEEFBEEFBEEF");
+
       // Check if the percentage is correct
       if (ObfTimes <= 0) {
         LLVMContext &ctx = llvm::getGlobalContext();
@@ -223,6 +233,8 @@ namespace {
         }while(--NumObfTimes > 0);
     }
 
+
+
     /* addBogusFlow
      *
      * Add bogus flow to a given basic block, according to the header's description
@@ -248,6 +260,49 @@ namespace {
       Twine * var3 = new Twine("alteredBB");
       BasicBlock *alteredBB = createAlteredBasicBlock(originalBB, *var3, &F);
       DEBUG_WITH_TYPE("gen", errs() << "bcf: Altered basic block: ok\n");
+
+	  //ltj: add assembly annotations to mark originalBB and alteredBB
+	  if (Annotate){
+		  IRBuilder<> irb(basicBlock);
+
+		  Instruction *origFirst = originalBB->getFirstNonPHI();
+		  Module *m = basicBlock->getParent()->getParent();
+		  Function *printf = m->getFunction("printf");
+		  if (printf != NULL){
+			  if (this->originalBBstartStrPtr == NULL){
+				  DEBUG_WITH_TYPE("ann", errs() << "ann: Creating \"originalBBStartAnnotation\" for the first time\n");
+				  IRBuilder<> irb(basicBlock);
+				  this->originalBBstartStrPtr = irb.CreateGlobalStringPtr("originalBBStartAnnotation", "originalBBStartAnnotation");
+			  }
+			  DEBUG_WITH_TYPE("ann", errs() << "ann: About to create printf\n");
+			  DEBUG_WITH_TYPE("ann", errs() << "ann: originalBBstartStrPtr: " << this->originalBBstartStrPtr << "\n");
+			  ArrayRef<Value *> args(this->originalBBstartStrPtr);
+			  CallInst::Create(printf, args, "", origFirst);
+
+			  if (DEBUG_ANN){
+				  Value *name = irb.CreateGlobalStringPtr(originalBB->getName());
+				  ArrayRef<Value *> argsOrigName(name);
+				  CallInst::Create(printf, argsOrigName, "", origFirst);
+			  }
+
+			  Instruction *altFirst = alteredBB->getFirstNonPHI();
+			  if (this->alteredBBstartStrPtr == NULL){
+				  DEBUG_WITH_TYPE("ann", errs() << "ann: Creating \"alteredBBStartAnnotation\" for the first time\n");
+				  IRBuilder<> irb(basicBlock);
+				  this->alteredBBstartStrPtr = irb.CreateGlobalStringPtr("alteredBBStartAnnotation", "alteredBBStartAnnotation");
+			  }
+			  DEBUG_WITH_TYPE("ann", errs() << "ann: About to create printf\n");
+			  DEBUG_WITH_TYPE("ann", errs() << "ann: alteredBBstartStrPtr: " << this->alteredBBstartStrPtr << "\n");
+			  ArrayRef<Value *> argsAlt(this->alteredBBstartStrPtr);
+			  CallInst::Create(printf, argsAlt, "", altFirst);
+
+			  if (DEBUG_ANN){
+				  Value *name2 = irb.CreateGlobalStringPtr(alteredBB->getName());
+				  ArrayRef<Value *> argsAltName(name2);
+				  CallInst::Create(printf, argsAltName, "", altFirst);
+			  }
+		  }
+	  }
 
       // Now that all the blocks are created,
       // we modify the terminators to adjust the control flow.
