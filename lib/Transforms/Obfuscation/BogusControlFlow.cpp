@@ -132,6 +132,10 @@ namespace {
      * to the function. See header for more details.
      */
     virtual bool runOnFunction(Function &F){
+		if (F.getName() == "original_annotation" || F.getName() == "altered_annotation") {
+			return false;
+		}
+
 	  // ltj: making deterministic for debugging purposes
 	  llvm::cryptoutils->prng_seed("DEADDEADDEADDEADBEEFBEEFBEEFBEEF");
 
@@ -267,7 +271,10 @@ namespace {
 
 			Instruction *origFirst = originalBB->getFirstNonPHI();
 			Module *m = basicBlock->getParent()->getParent();
+
 			Function *printf = m->getFunction("printf");
+			Function *orig_ann = m->getFunction("original_annotation");
+			Function *alt_ann = m->getFunction("altered_annotation");
 			if (!printf) {
 
 				PointerType* PointerTy_4 = PointerType::get(IntegerType::get(m->getContext(), 8), 0);
@@ -284,29 +291,110 @@ namespace {
 					/*Name=*/"printf", m); // (external, no body)
 				printf->setCallingConv(CallingConv::C);
 			}
+
 			AttributeSet func_printf_PAL;
 			{
 				SmallVector<AttributeSet, 4> Attrs;
 				AttributeSet PAS;
 				{
 					AttrBuilder B;
-					PAS = AttributeSet::get(mod->getContext(), ~0U, B);
+					PAS = AttributeSet::get(m->getContext(), ~0U, B);
 				}
 
 				Attrs.push_back(PAS);
-				func_printf_PAL = AttributeSet::get(mod->getContext(), Attrs);
+				func_printf_PAL = AttributeSet::get(m->getContext(), Attrs);
 
 			}
 			printf->setAttributes(func_printf_PAL);
-			if (this->originalBBstartStrPtr == NULL){
+
+			if (this->originalBBstartStrPtr == NULL) {
 				DEBUG_WITH_TYPE("ann", errs() << "ann: Creating \"originalBBStartAnnotation\" for the first time\n");
 				IRBuilder<> irb(basicBlock);
 				this->originalBBstartStrPtr = irb.CreateGlobalStringPtr("originalBBStartAnnotation", "originalBBStartAnnotation");
 			}
-			DEBUG_WITH_TYPE("ann", errs() << "ann: About to create printf\n");
-			DEBUG_WITH_TYPE("ann", errs() << "ann: originalBBstartStrPtr: " << this->originalBBstartStrPtr << "\n");
-			ArrayRef<Value *> args(this->originalBBstartStrPtr);
-			CallInst::Create(printf, args, "", origFirst);
+
+			if (this->alteredBBstartStrPtr == NULL) {
+				DEBUG_WITH_TYPE("ann", errs() << "ann: Creating \"alteredBBStartAnnotation\" for the first time\n");
+				IRBuilder<> irb(basicBlock);
+				this->alteredBBstartStrPtr = irb.CreateGlobalStringPtr("alteredBBStartAnnotation", "alteredBBStartAnnotation");
+			}
+
+			if (!orig_ann) {
+				Type* NullTy = (Type*)LLVMVoidType();
+				std::vector<Type*>FuncTy_8_args;
+				//FuncTy_8_args.push_back(NullTy);
+
+				FunctionType* FuncTy_oann = FunctionType::get(
+					(Type*)LLVMVoidType(),
+					FuncTy_8_args,
+					false);
+
+				DEBUG_WITH_TYPE("ann", errs() << "ann: About to create orig_ann function\n");
+				orig_ann = Function::Create(
+					FuncTy_oann,
+					GlobalValue::WeakODRLinkage,
+					"original_annotation", m);
+				orig_ann->setCallingConv(CallingConv::C);
+				DEBUG_WITH_TYPE("ann", errs() << "ann: orig_ann func created\n");
+
+				//TODO: build body of function
+				//TODO: call to printf with reference to originalBBstartStrPtr
+
+				BasicBlock* orig_ann_bb = BasicBlock::Create(m->getContext(), "entry", orig_ann);
+				IRBuilder<> builder(orig_ann_bb);
+
+				DEBUG_WITH_TYPE("ann", errs() << "ann: About to create printf\n");
+				DEBUG_WITH_TYPE("ann", errs() << "ann: originalBBstartStrPtr: " << this->originalBBstartStrPtr << "\n");
+				ArrayRef<Value *> args(this->originalBBstartStrPtr);
+				CallInst::Create(printf, args, "", orig_ann_bb);
+				DEBUG_WITH_TYPE("ann", errs() << "ann: call to printf created\n");
+
+				builder.CreateRet(NULL);
+				DEBUG_WITH_TYPE("ann", errs() << "ann: ret created\n");
+			}
+
+			if (!alt_ann) {
+				Type* NullTy = (Type*)LLVMVoidType();
+				std::vector<Type*>FuncTy_8_args;
+				//FuncTy_8_args.push_back(NullTy);
+
+				FunctionType* FuncTy_aann = FunctionType::get(
+					(Type*)LLVMVoidType(),
+					FuncTy_8_args,
+					false);
+
+				DEBUG_WITH_TYPE("ann", errs() << "ann: About to create alt_ann function\n");
+				alt_ann = Function::Create(
+					FuncTy_aann,
+					GlobalValue::WeakODRLinkage,
+					"altered_annotation", m);
+				alt_ann->setCallingConv(CallingConv::C);
+				DEBUG_WITH_TYPE("ann", errs() << "ann: alt_ann func created\n");
+
+				//TODO: build body of function
+				//TODO: call to printf with reference to originalBBstartStrPtr
+
+				BasicBlock* alt_ann_bb = BasicBlock::Create(m->getContext(), "entry", alt_ann);
+				IRBuilder<> builder(alt_ann_bb);
+
+				DEBUG_WITH_TYPE("ann", errs() << "ann: About to create printf\n");
+				DEBUG_WITH_TYPE("ann", errs() << "ann: alteredBBstartStrPtr: " << this->alteredBBstartStrPtr << "\n");
+				ArrayRef<Value *> args(this->alteredBBstartStrPtr);
+				CallInst::Create(printf, args, "", alt_ann_bb);
+				DEBUG_WITH_TYPE("ann", errs() << "ann: call to printf created\n");
+
+				builder.CreateRet(NULL);
+				DEBUG_WITH_TYPE("ann", errs() << "ann: ret created\n");
+			}
+
+			///Todo:Switch to call to original_annotation
+			//DEBUG_WITH_TYPE("ann", errs() << "ann: About to create printf\n");
+			//DEBUG_WITH_TYPE("ann", errs() << "ann: originalBBstartStrPtr: " << this->originalBBstartStrPtr << "\n");
+			//ArrayRef<Value *> args(this->originalBBstartStrPtr);
+			//CallInst::Create(printf, args, "", origFirst);
+			DEBUG_WITH_TYPE("ann", errs() << "ann: about to create call to original_annotation\n");
+			CallInst::Create(orig_ann, "", origFirst);
+			DEBUG_WITH_TYPE("ann", errs() << "ann: call to original_annotation created\n");
 
 			if (DEBUG_ANN){
 				Value *name = irb.CreateGlobalStringPtr(originalBB->getName());
@@ -315,15 +403,15 @@ namespace {
 			}
 
 			Instruction *altFirst = alteredBB->getFirstNonPHI();
-			if (this->alteredBBstartStrPtr == NULL){
-				DEBUG_WITH_TYPE("ann", errs() << "ann: Creating \"alteredBBStartAnnotation\" for the first time\n");
-				IRBuilder<> irb(basicBlock);
-				this->alteredBBstartStrPtr = irb.CreateGlobalStringPtr("alteredBBStartAnnotation", "alteredBBStartAnnotation");
-			}
-			DEBUG_WITH_TYPE("ann", errs() << "ann: About to create printf\n");
-			DEBUG_WITH_TYPE("ann", errs() << "ann: alteredBBstartStrPtr: " << this->alteredBBstartStrPtr << "\n");
-			ArrayRef<Value *> argsAlt(this->alteredBBstartStrPtr);
-			CallInst::Create(printf, argsAlt, "", altFirst);
+
+			///TODO:Switch to call to altered_annotation
+			//DEBUG_WITH_TYPE("ann", errs() << "ann: About to create printf\n");
+			//DEBUG_WITH_TYPE("ann", errs() << "ann: alteredBBstartStrPtr: " << this->alteredBBstartStrPtr << "\n");
+			//ArrayRef<Value *> argsAlt(this->alteredBBstartStrPtr);
+			//CallInst::Create(printf, argsAlt, "", altFirst);
+			DEBUG_WITH_TYPE("ann", errs() << "ann: about to create call to altered_annotation\n");
+			CallInst::Create(alt_ann, "", altFirst);
+			DEBUG_WITH_TYPE("ann", errs() << "ann: call to altered_annotation created\n");
 
 			if (DEBUG_ANN){
 				Value *name2 = irb.CreateGlobalStringPtr(alteredBB->getName());
