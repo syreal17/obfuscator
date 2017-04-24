@@ -324,9 +324,8 @@ namespace {
 				std::vector<Type*>FuncTy_8_args;
 				//FuncTy_8_args.push_back(NullTy);
 
-				LLVMModuleRef M = cast<LLVMModuleRef, Module>(*m);
 				FunctionType* FuncTy_oann = FunctionType::get(
-					(Type*)LLVMVoidTypeInContext(LLVMGetModuleContext(M)),
+					Type::getVoidTy(m->getContext()),
 					FuncTy_8_args,
 					false);
 
@@ -359,9 +358,8 @@ namespace {
 				std::vector<Type*>FuncTy_8_args;
 				//FuncTy_8_args.push_back(NullTy);
 
-				LLVMModuleRef M = cast<LLVMModuleRef, Module>(*m);
 				FunctionType* FuncTy_aann = FunctionType::get(
-					(Type*)LLVMVoidTypeInContext(LLVMGetModuleContext(M)),
+					Type::getVoidTy(m->getContext()),
 					FuncTy_8_args,
 					false);
 
