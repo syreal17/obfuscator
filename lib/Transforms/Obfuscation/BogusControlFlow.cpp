@@ -325,7 +325,7 @@ namespace {
 				//FuncTy_8_args.push_back(NullTy);
 
 				FunctionType* FuncTy_oann = FunctionType::get(
-					(Type*)LLVMVoidType(),
+					(Type*)LLVMVoidTypeInContext(LLVMGetGlobalContext()),
 					FuncTy_8_args,
 					false);
 
@@ -359,7 +359,7 @@ namespace {
 				//FuncTy_8_args.push_back(NullTy);
 
 				FunctionType* FuncTy_aann = FunctionType::get(
-					(Type*)LLVMVoidType(),
+					(Type*)LLVMVoidTypeInContext(LLVMGetGlobalContext()),
 					FuncTy_8_args,
 					false);
 
