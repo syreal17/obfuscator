@@ -396,6 +396,11 @@ namespace {
 			CallInst::Create(orig_ann, "", origFirst);
 			DEBUG_WITH_TYPE("ann", errs() << "ann: call to original_annotation created\n");
 
+			Type* t1 = Type::getInt32Ty(m->getContext());
+			Value* v1 = Constant::getIntegerValue(t1, APInt(32, 17));
+			Value* v2 = Constant::getIntegerValue(t1, APInt(32, 18));
+			BinaryOperator::Create(BinaryOperator::Add, v1, v2, "", origFirst);
+
 			if (DEBUG_ANN){
 				Value *name = irb.CreateGlobalStringPtr(originalBB->getName());
 				ArrayRef<Value *> argsOrigName(name);
